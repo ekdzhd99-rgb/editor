@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jin's Python Editor</title>
+    <title>Jin's Secret Mission Editor</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <style>
@@ -18,70 +18,45 @@
     </style>
 </head>
 <body>
-    <div id="loader">
-        <div style="font-size: 2.5rem; margin-bottom: 15px;">🐍</div>
-        <div id="loader-status">파이썬 엔진 로드 중...</div>
-    </div>
-
+    <div id="loader">🐍 파이썬 미션을 준비하고 있습니다...</div>
     <header>
         <div style="color:var(--main-color); font-weight:bold;">Jin's Class</div>
         <button id="run-btn" class="btn-run" onclick="runPython()" disabled>준비 중...</button>
     </header>
-
     <div id="editor-container"></div>
-    <div id="console"># 실행 결과창</div>
+    <div id="console"># 비밀 구절을 출력해서 미션을 해금하세요!</div>
 
     <script>
         let pyodide = null;
         let editor = null;
-        let retryCount = 0;
+        const SECRET = "우주선 발사 준비 완료!";
 
-        // [핵심] 성공했던 input 버전의 초기화 로직 복구
-        async function startApp() {
-            const status = document.getElementById('loader-status');
-            
+        async function initApp() {
             try {
-                // 파이썬 엔진 확인 및 초기화
-                if (typeof loadPyodide === 'undefined') {
-                    if (retryCount < 10) {
-                        retryCount++;
-                        status.innerText = `엔진 찾는 중... (${retryCount}/10)`;
-                        setTimeout(startApp, 1000);
-                        return;
-                    }
-                    throw new Error("엔진 라이브러리를 불러오지 못했습니다.");
-                }
-
                 pyodide = await loadPyodide();
-                
-                // 성공했던 input() 연결 로직 (수업용 보존)
+                // 성공했던 input() + prompt 연결 로직 보존
                 await pyodide.runPythonAsync(`
 import builtins
 from js import prompt
 def custom_input(msg=""):
-    return prompt(msg)
+    res = prompt(msg)
+    return res if res is not None else ""
 builtins.input = custom_input
 import sys, io
 sys.stdout = io.StringIO()
                 `);
 
-                // 에디터 생성 (Hello World 한 줄만!)
                 require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
                 require(['vs/editor/editor.main'], function() {
                     editor = monaco.editor.create(document.getElementById('editor-container'), {
                         value: "print('Hello World!')",
-                        language: 'python', theme: 'vs-dark', fontSize: 18, 
-                        automaticLayout: true, minimap: { enabled: false }
+                        language: 'python', theme: 'vs-dark', fontSize: 18, automaticLayout: true, minimap: { enabled: false }
                     });
-                    
                     document.getElementById('loader').style.display = 'none';
                     document.getElementById('run-btn').disabled = false;
                     document.getElementById('run-btn').innerText = "▶ 실행 (Run)";
                 });
-
-            } catch (err) {
-                status.innerHTML = "❌ 로딩 실패<br><small>" + err + "</small>";
-            }
+            } catch (e) { document.getElementById('loader').innerText = "❌ 로딩 에러"; }
         }
 
         async function runPython() {
@@ -92,54 +67,24 @@ sys.stdout = io.StringIO()
                 await pyodide.runPythonAsync(editor.getValue());
                 const output = await pyodide.runPythonAsync(`sys.stdout.getvalue()`);
                 consoleBox.innerText = output || "실행 완료";
-            } catch (err) {
-                consoleBox.innerText = "⚠️ 에러:\n" + err;
-            }
-        }
-        // 1. 비밀 구절 설정
-        const SECRET_PHRASE = "우주선 발사 준비 완료!"; 
-        
-        async function runPython() {
-            const consoleBox = document.getElementById('console');
-            consoleBox.innerText = "실행 중...\n";
-            
-            try {
-                await pyodide.runPythonAsync(`sys.stdout = io.StringIO()`);
-                await pyodide.runPythonAsync(editor.getValue());
-                const output = await pyodide.runPythonAsync(`sys.stdout.getvalue()`);
-                
-                consoleBox.innerText = output || "실행 완료";
-        
-                // 2. 비밀 구절 인식 로직 (공백 제거 후 비교)
-                if (output.trim().includes(SECRET_PHRASE)) {
-                    unlockStoryMission();
+
+                // [핵심] 결과창에서 비밀 구절 찾기
+                if (output.trim().includes(SECRET)) {
+                    unlockMission();
                 }
-            } catch (err) {
-                consoleBox.innerText = "⚠️ 에러:\n" + err;
-            }
-        }
-        
-        function unlockStoryMission() {
-            // 이미 스토리가 추가되었는지 확인
-            if (editor.getValue().includes("우주 탐험기")) return;
-        
-            const storyCode = `
-        # 🎊 [비밀 미션 성공] 선생님이 보낸 스토리 마법 코드!
-        print("\\n=== [ " + hero + "의 우주 탐험기 ] ===")
-        print(hero + "(은)는 드디어 " + planet + "에 착륙했습니다.")
-        print("그때 갑자기 나타난 외계인에게 " + weapon + "(을)를 휘둘렀어요!")
-        print("깜짝 놀란 외계인은 " + food + "(을)를 주면 살려주겠다고 했답니다.")
-        print("휴, " + hero + "(은)는 무사히 탐험을 마쳤습니다.")
-        `;
-            // 에디터에 코드 추가
-            editor.setValue(editor.getValue() + storyCode);
-            
-            // 시각적 효과
-            alert("🚀 비밀 구절을 찾아내셨군요! 스토리 미션이 해금되었습니다!");
+            } catch (err) { consoleBox.innerText = "⚠️ 에러:\n" + err; }
         }
 
-        startApp();
+        function unlockMission() {
+            if (editor.getValue().includes("우주 탐험기")) return;
+
+            const missionCode = `\n\n# --- [미션: 우주 탐험기] ---\n# 아래 변수들에 input()을 사용해서 값을 채워보세요!\nhero = \nplanet = \nweapon = \nfood = \n\n# 아래는 선생님이 만든 마법의 스토리 코드입니다!\nprint("\\n=== [ " + hero + "의 우주 탐험기 ] ===") \nprint(hero + "(은)는 드디어 " + planet + "에 착륙했습니다.")\nprint("그때 갑자기 나타난 외계인에게 " + weapon + "(을)를 휘둘렀어요!")\nprint("깜짝 놀란 외계인은 " + food + "(을)를 주면 살려주겠다고 했답니다.")\nprint("휴, " + hero + "(은)는 무사히 탐험을 마쳤습니다.")`;
+            
+            editor.setValue(editor.getValue() + missionCode);
+            alert("🚀 비밀 구절 인식 성공! 우주 탐험 미션이 해금되었습니다.");
+        }
+
+        initApp();
     </script>
 </body>
 </html>
-

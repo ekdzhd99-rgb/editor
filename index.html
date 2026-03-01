@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jin's SPIKE Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+    <style>
+        :root { --main-color: #FFCF00; --bg-color: #1e1e1e; }
+        body { margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; background: var(--bg-color); color: white; overflow: hidden; }
+        header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .logo { font-weight: bold; font-size: 1.2rem; color: var(--main-color); }
+        .btn-copy { background: var(--main-color); border: none; padding: 12px 25px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1rem; transition: transform 0.1s; }
+        .btn-copy:active { transform: scale(0.95); }
+        #editor-container { flex-grow: 1; width: 100%; }
+        /* 아이패드 스크롤 최적화 */
+        .monaco-editor .scroll-decoration { box-shadow: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">LEGO SPIKE Code Helper</div>
+        <button class="btn-copy" onclick="copyCode()">📋 코드 전체 복사</button>
+    </header>
+    <div id="editor-container"></div>
+
+    <script>
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+        let editor;
+
+        require(['vs/editor/editor.main'], function() {
+            // 스파이크 전용 자동 완성 데이터
+            monaco.languages.registerCompletionItemProvider('python', {
+                provideCompletionItems: () => {
+                    var suggestions = [
+                        { label: 'PrimeHub', kind: monaco.languages.CompletionItemKind.Class, insertText: 'PrimeHub()' },
+                        { label: 'light_matrix', kind: monaco.languages.CompletionItemKind.Property, insertText: 'light_matrix' },
+                        { label: 'distance_sensor', kind: monaco.languages.CompletionItemKind.Property, insertText: 'distance_sensor' },
+                        { label: 'wait_for_seconds', kind: monaco.languages.CompletionItemKind.Function, insertText: 'wait_for_seconds(${1:1})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+                        { label: 'show_image', kind: monaco.languages.CompletionItemKind.Method, insertText: "show_image('${1:HAPPY}')", insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
+                    ];
+                    return { suggestions: suggestions };
+                }
+            });
+
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: "# 레고 스파이크 파이썬 코드를 작성하세요\nfrom spike import PrimeHub, LightMatrix\nfrom spike.control import wait_for_seconds\n\nhub = PrimeHub()\n\n# 여기에 코드를 입력하고 복사 버튼을 누르세요\n",
+                language: 'python',
+                theme: 'vs-dark',
+                fontSize: 18,
+                lineNumbers: 'on',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                wordWrap: "on"
+            });
+        });
+
+        function copyCode() {
+            const code = editor.getValue();
+            navigator.clipboard.writeText(code).then(() => {
+                alert("코드가 복사되었습니다! 스파이크 앱에서 [붙여넣기] 하세요.");
+            }).catch(err => {
+                alert("복사 실패: " + err);
+            });
+        }
+    </script>
+</body>
+</html>

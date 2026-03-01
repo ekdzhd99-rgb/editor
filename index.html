@@ -101,14 +101,25 @@
             });
         }
 
+       // input()을 썼을 때
         async function runPython() {
             const consoleElement = document.getElementById('console');
-            consoleElement.innerText = "실행 중...\n";
             try {
-                await pyodide.runPythonAsync(`sys.stdout = io.StringIO()`);
-                await pyodide.runPythonAsync(editor.getValue());
-                const output = await pyodide.runPythonAsync(`sys.stdout.getvalue()`);
-                consoleElement.innerText = output || "실행 완료 (출력 내용 없음)";
+                if (!pyodide) {
+                    pyodide = await loadPyodide();
+                }
+        
+                // 웹 브라우저의 prompt 기능을 파이썬의 input으로 연결
+                pyodide.runPython(`
+                    import builtins
+                    from js import prompt
+                    def custom_input(message=""):
+                        result = prompt(message)
+                        return result if result is not None else ""
+                    builtins.input = custom_input
+                `);
+        
+                // ... 나머지 실행 로직 (이전과 동일)
             } catch (err) {
                 consoleElement.innerText = "⚠️ 에러:\n" + err;
             }
@@ -118,4 +129,5 @@
     </script>
 </body>
 </html>
+
 

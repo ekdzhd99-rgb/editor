@@ -96,8 +96,50 @@ sys.stdout = io.StringIO()
                 consoleBox.innerText = "⚠️ 에러:\n" + err;
             }
         }
+        // 1. 비밀 구절 설정
+        const SECRET_PHRASE = "우주선 발사 준비 완료!"; 
+        
+        async function runPython() {
+            const consoleBox = document.getElementById('console');
+            consoleBox.innerText = "실행 중...\n";
+            
+            try {
+                await pyodide.runPythonAsync(`sys.stdout = io.StringIO()`);
+                await pyodide.runPythonAsync(editor.getValue());
+                const output = await pyodide.runPythonAsync(`sys.stdout.getvalue()`);
+                
+                consoleBox.innerText = output || "실행 완료";
+        
+                // 2. 비밀 구절 인식 로직 (공백 제거 후 비교)
+                if (output.trim().includes(SECRET_PHRASE)) {
+                    unlockStoryMission();
+                }
+            } catch (err) {
+                consoleBox.innerText = "⚠️ 에러:\n" + err;
+            }
+        }
+        
+        function unlockStoryMission() {
+            // 이미 스토리가 추가되었는지 확인
+            if (editor.getValue().includes("우주 탐험기")) return;
+        
+            const storyCode = `
+        # 🎊 [비밀 미션 성공] 선생님이 보낸 스토리 마법 코드!
+        print("\\n=== [ " + hero + "의 우주 탐험기 ] ===")
+        print(hero + "(은)는 드디어 " + planet + "에 착륙했습니다.")
+        print("그때 갑자기 나타난 외계인에게 " + weapon + "(을)를 휘둘렀어요!")
+        print("깜짝 놀란 외계인은 " + food + "(을)를 주면 살려주겠다고 했답니다.")
+        print("휴, " + hero + "(은)는 무사히 탐험을 마쳤습니다.")
+        `;
+            // 에디터에 코드 추가
+            editor.setValue(editor.getValue() + storyCode);
+            
+            // 시각적 효과
+            alert("🚀 비밀 구절을 찾아내셨군요! 스토리 미션이 해금되었습니다!");
+        }
 
         startApp();
     </script>
 </body>
 </html>
+

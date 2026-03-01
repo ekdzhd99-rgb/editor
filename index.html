@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jin's Python Editor v3.0</title>
+    <title>Jin's Final Python Editor</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <style>
@@ -18,12 +18,10 @@
 </head>
 <body>
     <div id="loader">🐍 파이썬 엔진을 불러오는 중...</div>
-
     <header>
         <div style="color:var(--main-color); font-weight:bold;">Jin's Editor</div>
         <button id="run-btn" class="btn-run" onclick="runPython()">▶ 실행 (Run)</button>
     </header>
-
     <div id="editor-container"></div>
     <div id="console"># 결과창</div>
 
@@ -33,101 +31,44 @@
 
         async function initApp() {
             try {
-                // 1. 파이썬 엔진 로딩 확인
-                if (typeof loadPyodide === 'function') {
-                    pyodide = await loadPyodide();
-                    await pyodide.runPythonAsync(`import sys, io\nsys.stdout = io.StringIO()`);
-                    
-                    // 2. 엔진 로드 후 에디터 초기화
-                    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-                    require(['vs/editor/editor.main'], function() {
-                        editor = monaco.editor.create(document.getElementById('editor-container'), {
-                            value: "print('Hello World!')",
-                            language: 'python', theme: 'vs-dark', fontSize: 18, automaticLayout: true, minimap: { enabled: false }
-                        });
-                        document.getElementById('loader').style.display = 'none';
+                pyodide = await loadPyodide();
+                // 핵심: input() 함수를 브라우저 prompt로 연결
+                await pyodide.runPythonAsync(`
+import builtins
+from js import prompt
+def custom_input(prompt_msg=""):
+    return prompt(prompt_msg)
+builtins.input = custom_input
+import sys, io
+sys.stdout = io.StringIO()
+                `);
+                
+                require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+                require(['vs/editor/editor.main'], function() {
+                    editor = monaco.editor.create(document.getElementById('editor-container'), {
+                        value: "print('Hello World!')\na = input('너의 이름은??')\nprint(f'{a}님 반가워요!')",
+                        language: 'python', theme: 'vs-dark', fontSize: 18, automaticLayout: true, minimap: { enabled: false }
                     });
-                }
+                    document.getElementById('loader').style.display = 'none';
+                });
             } catch (err) {
-                document.getElementById('loader').innerText = "❌ 엔진 로딩 실패. 다시 시도해 주세요.";
-                console.error(err);
+                document.getElementById('loader').innerText = "❌ 로딩 실패";
             }
-            monaco.languages.registerCompletionItemProvider('python', {
-                provideCompletionItems: (model, position) => {
-                    const suggestions = [
-                        // 1. 반복문 (for)
-                        {
-                            label: 'for',
-                            kind: monaco.languages.CompletionItemKind.Snippet,
-                            insertText: 'for i in range(${1:5}):\n    ${0:print(i)}',
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            documentation: '지정된 횟수만큼 반복합니다.'
-                        },
-                        // 2. 조건문 (if-else)
-                        {
-                            label: 'if-else',
-                            kind: monaco.languages.CompletionItemKind.Snippet,
-                            insertText: 'if ${1:condition}:\n    ${2:pass}\nelse:\n    ${0:pass}',
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            documentation: '조건에 따라 실행을 나눕니다.'
-                        },
-                        // 3. 리스트 (list)
-                        {
-                            label: 'list_create',
-                            kind: monaco.languages.CompletionItemKind.Snippet,
-                            insertText: '${1:my_list} = [${2:1, 2, 3}]',
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            documentation: '새 리스트를 만듭니다.'
-                        },
-                        // 4. 사용자 정의 함수 (def)
-                        {
-                            label: 'def',
-                            kind: monaco.languages.CompletionItemKind.Snippet,
-                            insertText: 'def ${1:function_name}(${2:param}):\n    ${0:pass}',
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            documentation: '새로운 함수를 정의합니다.'
-                        },
-                        // 5. 무한 반복 (while)
-                        {
-                            label: 'while',
-                            kind: monaco.languages.CompletionItemKind.Snippet,
-                            insertText: 'while ${1:True}:\n    ${0:pass}',
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            documentation: '조건이 참인 동안 계속 반복합니다.'
-                        }
-                    ];
-                    return { suggestions: suggestions };
-                }
-            });
         }
 
-       // input()을 썼을 때
         async function runPython() {
             const consoleElement = document.getElementById('console');
+            consoleElement.innerText = "실행 중...\n";
             try {
-                if (!pyodide) {
-                    pyodide = await loadPyodide();
-                }
-        
-                // 웹 브라우저의 prompt 기능을 파이썬의 input으로 연결
-                pyodide.runPython(`
-                    import builtins
-                    from js import prompt
-                    def custom_input(message=""):
-                        result = prompt(message)
-                        return result if result is not None else ""
-                    builtins.input = custom_input
-                `);
-        
-                // ... 나머지 실행 로직 (이전과 동일)
+                await pyodide.runPythonAsync(`sys.stdout = io.StringIO()`);
+                await pyodide.runPythonAsync(editor.getValue());
+                const output = await pyodide.runPythonAsync(`sys.stdout.getvalue()`);
+                consoleElement.innerText = output || "실행 완료";
             } catch (err) {
                 consoleElement.innerText = "⚠️ 에러:\n" + err;
             }
         }
-
         initApp();
     </script>
 </body>
 </html>
-
-

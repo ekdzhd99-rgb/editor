@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jin's Final Editor</title>
+    <title>Jin's Python Editor</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <style>
@@ -14,77 +14,90 @@
         .btn-run:disabled { background: #555; cursor: not-allowed; }
         #editor-container { flex: 2; width: 100%; border-bottom: 2px solid #333; }
         #console { flex: 1; background: #000; color: #00ff00; padding: 15px; font-family: monospace; overflow-y: auto; font-size: 16px; white-space: pre-wrap; }
-        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1e1e1e; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; font-size: 1.2rem; }
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1e1e1e; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
     </style>
 </head>
 <body>
-    <div id="loader">🐍 파이썬 엔진을 준비하고 있습니다...</div>
+    <div id="loader">
+        <div style="font-size: 2.5rem; margin-bottom: 15px;">🐍</div>
+        <div id="loader-status">파이썬 엔진 로드 중...</div>
+    </div>
 
     <header>
-        <div style="color:var(--main-color); font-weight:bold;">Jin's Editor</div>
+        <div style="color:var(--main-color); font-weight:bold;">Jin's Class</div>
         <button id="run-btn" class="btn-run" onclick="runPython()" disabled>준비 중...</button>
     </header>
 
     <div id="editor-container"></div>
-    <div id="console"># [실행] 버튼을 누르면 코드가 작동합니다.</div>
+    <div id="console"># 실행 결과창</div>
 
     <script>
         let pyodide = null;
         let editor = null;
+        let retryCount = 0;
 
-        // 1. 에디터 초기화 (요청하신 대로 Hello World만!)
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
-            editor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: "print('Hello World!')", // 진님! 딱 여기만 수정했습니다.
-                language: 'python', theme: 'vs-dark', fontSize: 18, automaticLayout: true, minimap: { enabled: false }
-            });
-            initPyodide();
-        });
-
-        // 2. 파이썬 엔진 초기화 (input 성공 버전 로직)
-        async function initPyodide() {
+        // [핵심] 성공했던 input 버전의 초기화 로직 복구
+        async function startApp() {
+            const status = document.getElementById('loader-status');
+            
             try {
+                // 파이썬 엔진 확인 및 초기화
                 if (typeof loadPyodide === 'undefined') {
-                    throw new Error("라이브러리 로드 대기 중...");
+                    if (retryCount < 10) {
+                        retryCount++;
+                        status.innerText = `엔진 찾는 중... (${retryCount}/10)`;
+                        setTimeout(startApp, 1000);
+                        return;
+                    }
+                    throw new Error("엔진 라이브러리를 불러오지 못했습니다.");
                 }
+
                 pyodide = await loadPyodide();
                 
-                // input() 함수를 브라우저 prompt로 연결했던 바로 그 코드!
+                // 성공했던 input() 연결 로직 (수업용 보존)
                 await pyodide.runPythonAsync(`
 import builtins
 from js import prompt
-def custom_input(prompt_msg=""):
-    result = prompt(prompt_msg)
-    return result if result is not None else ""
+def custom_input(msg=""):
+    return prompt(msg)
 builtins.input = custom_input
 import sys, io
 sys.stdout = io.StringIO()
                 `);
-                
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('run-btn').disabled = false;
-                document.getElementById('run-btn').innerText = "▶ 실행 (Run)";
+
+                // 에디터 생성 (Hello World 한 줄만!)
+                require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+                require(['vs/editor/editor.main'], function() {
+                    editor = monaco.editor.create(document.getElementById('editor-container'), {
+                        value: "print('Hello World!')",
+                        language: 'python', theme: 'vs-dark', fontSize: 18, 
+                        automaticLayout: true, minimap: { enabled: false }
+                    });
+                    
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('run-btn').disabled = false;
+                    document.getElementById('run-btn').innerText = "▶ 실행 (Run)";
+                });
+
             } catch (err) {
-                console.log(err);
-                // 엔진이 덜 불려왔으면 1초 뒤에 다시 시도
-                setTimeout(initPyodide, 1000);
+                status.innerHTML = "❌ 로딩 실패<br><small>" + err + "</small>";
             }
         }
 
-        // 3. 코드 실행 함수
         async function runPython() {
-            const consoleElement = document.getElementById('console');
-            consoleElement.innerText = "실행 중...\n";
+            const consoleBox = document.getElementById('console');
+            consoleBox.innerText = "실행 중...\n";
             try {
                 await pyodide.runPythonAsync(`sys.stdout = io.StringIO()`);
                 await pyodide.runPythonAsync(editor.getValue());
                 const output = await pyodide.runPythonAsync(`sys.stdout.getvalue()`);
-                consoleElement.innerText = output || "실행 완료";
+                consoleBox.innerText = output || "실행 완료";
             } catch (err) {
-                consoleElement.innerText = "⚠️ 에러 발생:\n" + err;
+                consoleBox.innerText = "⚠️ 에러:\n" + err;
             }
         }
+
+        startApp();
     </script>
 </body>
 </html>

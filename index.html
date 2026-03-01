@@ -3,64 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jin's SPIKE Editor</title>
+    <title>Jin's Python Class Editor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
     <style>
         :root { --main-color: #FFCF00; --bg-color: #1e1e1e; }
-        body { margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; background: var(--bg-color); color: white; overflow: hidden; }
-        header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .logo { font-weight: bold; font-size: 1.2rem; color: var(--main-color); }
-        .btn-copy { background: var(--main-color); border: none; padding: 12px 25px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1rem; transition: transform 0.1s; }
-        .btn-copy:active { transform: scale(0.95); }
-        #editor-container { flex-grow: 1; width: 100%; }
-        /* 아이패드 스크롤 최적화 */
-        .monaco-editor .scroll-decoration { box-shadow: none; }
+        body { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--bg-color); color: white; font-family: sans-serif; overflow: hidden; }
+        header { padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; border-bottom: 1px solid #444; }
+        .btn-group { display: flex; gap: 10px; }
+        button { padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-run { background: #4CAF50; color: white; } /* 실행 버튼: 초록색 */
+        .btn-copy { background: var(--main-color); color: #000; } /* 복사 버튼: 노란색 */
+        #editor-container { flex: 3; width: 100%; }
+        #console { flex: 1; background: #000; color: #00ff00; padding: 15px; font-family: 'Courier New', monospace; overflow-y: auto; border-top: 2px solid #333; font-size: 15px; }
+        .loading-mask { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
     </style>
 </head>
 <body>
+    <div id="loading" class="loading-mask">
+        <div style="font-size: 20px; margin-bottom: 10px;">🐍 파이썬 엔진 준비 중...</div>
+        <div style="font-size: 14px; color: #888;">잠시만 기다려주세요 (약 3~5초)</div>
+    </div>
+
     <header>
-        <div class="logo">LEGO SPIKE Code Helper</div>
-        <button class="btn-copy" onclick="copyCode()">📋 코드 전체 복사</button>
+        <div style="color:var(--main-color); font-weight:bold; font-size: 1.2rem;">Jin's Editor</div>
+        <div class="btn-group">
+            <button class="btn-run" onclick="runPython()">▶ 실행 (Run)</button>
+            <button class="btn-copy" onclick="copyCode()">📋 전체 복사</button>
+        </div>
     </header>
+
     <div id="editor-container"></div>
+    <div id="console"># 여기에 실행 결과가 표시됩니다.</div>
 
     <script>
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+        let pyodide;
         let editor;
 
-        require(['vs/editor/editor.main'], function() {
-            // 스파이크 전용 자동 완성 데이터
-            monaco.languages.registerCompletionItemProvider('python', {
-                provideCompletionItems: () => {
-                    var suggestions = [
-                        { label: 'PrimeHub', kind: monaco.languages.CompletionItemKind.Class, insertText: 'PrimeHub()' },
-                        { label: 'light_matrix', kind: monaco.languages.CompletionItemKind.Property, insertText: 'light_matrix' },
-                        { label: 'distance_sensor', kind: monaco.languages.CompletionItemKind.Property, insertText: 'distance_sensor' },
-                        { label: 'wait_for_seconds', kind: monaco.languages.CompletionItemKind.Function, insertText: 'wait_for_seconds(${1:1})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-                        { label: 'show_image', kind: monaco.languages.CompletionItemKind.Method, insertText: "show_image('${1:HAPPY}')", insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
-                    ];
-                    return { suggestions: suggestions };
-                }
-            });
+        // 1. 파이썬 엔진(Pyodide) 초기화
+        async function initPyodide() {
+            pyodide = await loadPyodide();
+            document.getElementById('loading').style.display = 'none';
+        }
+        initPyodide();
 
+        // 2. Monaco 에디터 설정
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
             editor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: "# 레고 스파이크 파이썬 코드를 작성하세요\nfrom spike import PrimeHub, LightMatrix\nfrom spike.control import wait_for_seconds\n\nhub = PrimeHub()\n\n# 여기에 코드를 입력하고 복사 버튼을 누르세요\n",
+                value: "print('Hello World!')\n\n# 변수 연습\nname = 'Jin'\nprint('반가워요!', name)\n\n# 반복문 연습\nfor i in range(3):\n    print(f'{i+1}번째 인사!')",
                 language: 'python',
                 theme: 'vs-dark',
                 fontSize: 18,
-                lineNumbers: 'on',
                 automaticLayout: true,
-                minimap: { enabled: false },
-                wordWrap: "on"
+                minimap: { enabled: false }
             });
         });
 
+        // 3. 파이썬 코드 실행 함수
+        async function runPython() {
+            const consoleElement = document.getElementById('console');
+            consoleElement.innerText = "실행 중...\n";
+            
+            try {
+                // 파이썬의 표준 출력을 가로채기 위한 설정
+                await pyodide.runPythonAsync(`
+                    import sys
+                    import io
+                    sys.stdout = io.StringIO()
+                `);
+
+                const code = editor.getValue();
+                await pyodide.runPythonAsync(code);
+                
+                // 실행된 결과 가져오기
+                const stdout = await pyodide.runPythonAsync("sys.stdout.getvalue()");
+                consoleElement.innerText = stdout || "실행 완료 (출력 내용 없음)";
+            } catch (err) {
+                consoleElement.innerText = "⚠️ 에러가 발생했어요! 코드를 확인해 보세요.\n\n" + err;
+            }
+        }
+
+        // 4. 코드 복사 함수
         function copyCode() {
             const code = editor.getValue();
             navigator.clipboard.writeText(code).then(() => {
-                alert("코드가 복사되었습니다! 스파이크 앱에서 [붙여넣기] 하세요.");
-            }).catch(err => {
-                alert("복사 실패: " + err);
+                alert("코드가 복사되었습니다! 스파이크 앱에 붙여넣으세요.");
             });
         }
     </script>

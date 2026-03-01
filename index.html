@@ -4,64 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Jin's Python Editor</title>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <style>
         :root { --main-color: #FFCF00; --bg-color: #1e1e1e; }
         body { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--bg-color); color: white; font-family: sans-serif; overflow: hidden; }
         header { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; border-bottom: 2px solid #444; }
         .btn-run { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-run:disabled { background: #555; cursor: not-allowed; }
         #editor-container { flex: 2; width: 100%; border-bottom: 2px solid #333; }
         #console { flex: 1; background: #000; color: #00ff00; padding: 15px; font-family: monospace; overflow-y: auto; font-size: 16px; white-space: pre-wrap; }
-        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1e1e1e; display: flex; justify-content: center; align-items: center; z-index: 1000; font-size: 1.2rem; }
     </style>
 </head>
 <body>
-    <div id="loader">🐍 파이썬 엔진 준비 중...</div>
     <header>
         <div style="color:var(--main-color); font-weight:bold;">Jin's Class</div>
-        <button id="run-btn" class="btn-run" onclick="runPython()">▶ 실행 (Run)</button>
+        <button id="run-btn" class="btn-run" onclick="runPython()" disabled>준비 중...</button>
     </header>
     <div id="editor-container"></div>
-    <div id="console"># 여기에 실행 결과가 표시됩니다.</div>
+    <div id="console"># 파이썬 엔진을 불러오고 있습니다. 잠시만 기다려주세요...</div>
 
     <script>
         let pyodide = null;
         let editor = null;
 
-        async function initApp() {
-            try {
-                pyodide = await loadPyodide();
-                await pyodide.runPythonAsync(`import sys, io\nsys.stdout = io.StringIO()`);
-                
-                require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-                require(['vs/editor/editor.main'], function() {
-                    editor = monaco.editor.create(document.getElementById('editor-container'), {
-                        // 딱 이 부분만 남겼습니다!
-                        value: "print('Hello World!')",
-                        language: 'python', theme: 'vs-dark', fontSize: 18, automaticLayout: true, minimap: { enabled: false },
-                        snippetSuggestions: "none", quickSuggestions: { other: true }
-                    });
-                    document.getElementById('loader').style.display = 'none';
-                });
-            } catch (err) {
-                document.getElementById('loader').innerText = "❌ 로딩 실패";
-            }
-        }
+        // 1. 에디터부터 즉시 띄우기
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: "print('Hello World!')",
+                language: 'python', theme: 'vs-dark', fontSize: 18, automaticLayout: true, minimap: { enabled: false }
+            });
+            loadPythonEngine(); // 에디터 뜬 후 엔진 로드 시작
+        });
 
-        async function runPython() {
+        // 2. 파이썬 엔진 별도 로드
+        async function loadPythonEngine() {
+            const runBtn = document.getElementById('run-btn');
             const consoleElement = document.getElementById('console');
-            consoleElement.innerText = "실행 중...\n";
+            
             try {
-                await pyodide.runPythonAsync(`sys.stdout = io.StringIO()`);
-                await pyodide.runPythonAsync(editor.getValue());
-                const output = await pyodide.runPythonAsync(`sys.stdout.getvalue()`);
-                consoleElement.innerText = output || "실행 완료";
-            } catch (err) {
-                consoleElement.innerText = "⚠️ 에러 발생:\n" + err;
-            }
-        }
-        initApp();
-    </script>
-</body>
-</html>
+                // 스크립트를 동

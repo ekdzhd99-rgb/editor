@@ -43,7 +43,7 @@
                 require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
                 require(['vs/editor/editor.main'], function() {
                     editor = monaco.editor.create(document.getElementById('editor-container'), {
-                        value: "print('Hello World!')\n\n# 반복문 연습\nfor i in range(5):\n    print(i + 1, '번째 인사!')",
+                        value: "print('Hello World!')\n,
                         language: 'python', theme: 'vs-dark', fontSize: 18, automaticLayout: true, minimap: { enabled: false },
                         snippetSuggestions: "none", quickSuggestions: { other: true }
                     });
@@ -75,3 +75,4 @@
     </script>
 </body>
 </html>
+

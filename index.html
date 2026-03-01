@@ -3,66 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jin's Quick Editor</title>
+    <title>Jin's Final Editor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
     <style>
         :root { --main-color: #FFCF00; --bg-color: #1e1e1e; }
         body { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--bg-color); color: white; font-family: sans-serif; overflow: hidden; }
-        header { padding: 10px; display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; }
+        header { padding: 10px; display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; border-bottom: 2px solid #444; }
         .btn-group { display: flex; gap: 8px; }
-        button { padding: 12px 18px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        button { padding: 12px 18px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
         .btn-run { background: #4CAF50; color: white; }
         .btn-copy { background: var(--main-color); color: #000; }
-        button:disabled { background: #555; cursor: not-allowed; }
-        #editor-container { flex: 2; width: 100%; }
-        #console { flex: 1; background: #000; color: #00ff00; padding: 15px; font-family: monospace; overflow-y: auto; border-top: 2px solid #333; font-size: 16px; }
+        #editor-container { flex: 2; width: 100%; border-bottom: 2px solid #333; }
+        #console { flex: 1; background: #000; color: #00ff00; padding: 15px; font-family: 'Courier New', monospace; overflow-y: auto; font-size: 16px; white-space: pre-wrap; }
     </style>
 </head>
 <body>
     <header>
-        <div style="color:var(--main-color); font-weight:bold;">Jin's Class</div>
+        <div style="color:var(--main-color); font-weight:bold;">Jin's Python Editor</div>
         <div class="btn-group">
             <button id="run-btn" class="btn-run" onclick="runPython()">▶ 실행 (Run)</button>
-            <button class="btn-copy" onclick="copyCode()">📋 복사</button>
+            <button class="btn-copy" onclick="copyCode()">📋 전체 복사</button>
         </div>
     </header>
 
     <div id="editor-container"></div>
-    <div id="console"># [실행] 버튼을 누르면 파이썬 엔진을 로드합니다. (첫 실행 시 3~5초 소요)</div>
+    <div id="console"># [실행] 버튼을 누르면 코드가 작동합니다.</div>
 
     <script>
         let pyodide = null;
-        let editor;
+        let editor = null;
 
-        // 에디터 먼저 띄우기
+        // 1. 에디터 설정
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
         require(['vs/editor/editor.main'], function() {
             editor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: "print('Hello World!')\n\nfor i in range(3):\n    print(i+1, '번째 테스트')",
+                value: "print('Hello World!')\n\n# 기초 문법 테스트\nnumbers = [1, 2, 3, 4, 5]\nfor n in numbers:\n    if n % 2 == 0:\n        print(f'{n}은 짝수입니다!')",
                 language: 'python', theme: 'vs-dark', fontSize: 18, automaticLayout: true, minimap: { enabled: false }
             });
         });
 
+        // 2. 파이썬 실행 로직
         async function runPython() {
-            const btn = document.getElementById('run-btn');
             const consoleElement = document.getElementById('console');
-            
-            if (!pyodide) {
-                btn.disabled = true;
-                consoleElement.innerText = "파이썬 엔진을 처음으로 불러오는 중입니다... 잠시만 기다려주세요.\n";
-                pyodide = await loadPyodide();
-                btn.disabled = false;
-            }
+            const runBtn = document.getElementById('run-btn');
 
-            consoleElement.innerText = "실행 중...\n";
             try {
-                await pyodide.runPythonAsync(`import sys, io\nsys.stdout = io.StringIO()`);
-                await pyodide.runPythonAsync(editor.getValue());
-                const stdout = await pyodide.runPythonAsync("sys.stdout.getvalue()");
-                consoleElement.innerText = stdout || "실행 완료 (출력 없음)";
+                if (!pyodide) {
+                    consoleElement.innerText = "🐍 파이썬 엔진 로딩 중... (처음 한 번만 수행됩니다)\n";
+                    runBtn.disabled = true;
+                    // loadPyodide가 정의되었는지 확인 후 로드
+                    if (typeof loadPyodide === 'undefined') {
+                        throw new Error("엔진 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요.");
+                    }
+                    pyodide = await loadPyodide();
+                    runBtn.disabled = false;
+                }
+
+                consoleElement.innerText = "실행 중...\n";
+                
+                // 출력 가로채기 설정
+                await pyodide.runPythonAsync(`
+import sys
+import io
+sys.stdout = io.StringIO()
+                `);
+
+                const code = editor.getValue();
+                await pyodide.runPythonAsync(code);
+                
+                const result = await pyodide.runPythonAsync("sys.stdout.getvalue()");
+                consoleElement.innerText = result || "실행 완료 (출력 없음)";
+
             } catch (err) {
-                consoleElement.innerText = "⚠️ 에러 발생:\n" + err;
+                consoleElement.innerText = "⚠️ 에러 발생:\n" + err.message;
+                runBtn.disabled = false;
             }
         }
 

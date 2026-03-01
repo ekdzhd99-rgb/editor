@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jin's Secret Mission Editor</title>
+    <title>Jin's Python Editor</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <style>
@@ -18,23 +18,22 @@
     </style>
 </head>
 <body>
-    <div id="loader">🐍 파이썬 미션을 준비하고 있습니다...</div>
+    <div id="loader">🐍 파이썬 엔진을 준비하고 있습니다...</div>
     <header>
         <div style="color:var(--main-color); font-weight:bold;">Jin's Class</div>
         <button id="run-btn" class="btn-run" onclick="runPython()" disabled>준비 중...</button>
     </header>
     <div id="editor-container"></div>
-    <div id="console"># 비밀 구절을 출력해서 미션을 해금하세요!</div>
+    <div id="console"># 실행 결과가 여기에 표시됩니다.</div>
 
     <script>
         let pyodide = null;
         let editor = null;
-        const SECRET = "우주선 발사 준비 완료!";
+        const SECRET = "파이썬재밌다"; 
 
         async function initApp() {
             try {
                 pyodide = await loadPyodide();
-                // 성공했던 input() + prompt 연결 로직 보존
                 await pyodide.runPythonAsync(`
 import builtins
 from js import prompt
@@ -56,7 +55,9 @@ sys.stdout = io.StringIO()
                     document.getElementById('run-btn').disabled = false;
                     document.getElementById('run-btn').innerText = "▶ 실행 (Run)";
                 });
-            } catch (e) { document.getElementById('loader').innerText = "❌ 로딩 에러"; }
+            } catch (e) { 
+                document.getElementById('loader').innerText = "❌ 로딩 에러. 새로고침 해주세요!"; 
+            }
         }
 
         async function runPython() {
@@ -68,7 +69,7 @@ sys.stdout = io.StringIO()
                 const output = await pyodide.runPythonAsync(`sys.stdout.getvalue()`);
                 consoleBox.innerText = output || "실행 완료";
 
-                // [핵심] 결과창에서 비밀 구절 찾기
+                // 비밀 구절 인식 시 미션 해금! (아이들은 모르게 숨겨진 기능)
                 if (output.trim().includes(SECRET)) {
                     unlockMission();
                 }

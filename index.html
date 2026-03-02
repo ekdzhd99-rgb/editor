@@ -12,7 +12,7 @@
         header { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; border-bottom: 2px solid #444; }
         .btn-group { display: flex; gap: 8px; }
         .btn-run { background: #4CAF50; color: white; padding: 10px 18px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
-        .btn-clear { background: #666; color: white; padding: 10px 18px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-clear { background: #e81123; color: white; padding: 10px 18px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
         .btn-run:disabled { background: #555; cursor: not-allowed; }
         #editor-container { flex: 2; width: 100%; border-bottom: 2px solid #333; }
         #console { flex: 1; background: #000; color: #00ff00; padding: 15px; font-family: monospace; overflow-y: auto; font-size: 16px; white-space: pre-wrap; }
@@ -24,7 +24,7 @@
     <header>
         <div style="color:var(--main-color); font-weight:bold;">Jin's Class</div>
         <div class="btn-group">
-            <button class="btn-clear" onclick="clearConsole()">지우기 (Clear)</button>
+            <button class="btn-clear" onclick="clearEditor()">코드 지우기</button>
             <button id="run-btn" class="btn-run" onclick="runPython()" disabled>준비 중...</button>
         </div>
     </header>
@@ -36,9 +36,11 @@
         let editor = null;
         const SECRET = "우주선 발사 준비 완료!"; 
 
-        // [추가] 콘솔을 비우는 아주 간단한 함수
-        function clearConsole() {
-            document.getElementById('console').innerText = "# 실행 결과가 여기에 표시됩니다.";
+        // [수정] 에디터의 내용을 싹 지우는 함수입니다.
+        function clearEditor() {
+            if (confirm("작성한 코드를 모두 지울까요?")) {
+                editor.setValue("");
+            }
         }
 
         async function initApp() {
@@ -72,8 +74,6 @@ sys.stdout = io.StringIO()
 
         async function runPython() {
             const consoleBox = document.getElementById('console');
-            // 실행할 때마다 이전 내용을 지우고 싶지 않다면 아래 줄을 유지하세요.
-            // 만약 실행할 때마다 자동으로 비우고 싶다면 clearConsole()을 여기서 호출하면 됩니다.
             consoleBox.innerText = "실행 중...\n";
             try {
                 await pyodide.runPythonAsync(`sys.stdout = io.StringIO()`);

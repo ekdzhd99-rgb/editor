@@ -10,7 +10,9 @@
         :root { --main-color: #FFCF00; --bg-color: #1e1e1e; }
         body { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--bg-color); color: white; font-family: sans-serif; overflow: hidden; }
         header { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; border-bottom: 2px solid #444; }
-        .btn-run { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-group { display: flex; gap: 8px; }
+        .btn-run { background: #4CAF50; color: white; padding: 10px 18px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-clear { background: #666; color: white; padding: 10px 18px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
         .btn-run:disabled { background: #555; cursor: not-allowed; }
         #editor-container { flex: 2; width: 100%; border-bottom: 2px solid #333; }
         #console { flex: 1; background: #000; color: #00ff00; padding: 15px; font-family: monospace; overflow-y: auto; font-size: 16px; white-space: pre-wrap; }
@@ -18,10 +20,13 @@
     </style>
 </head>
 <body>
-    <div id="loader">🐍 파이썬 엔진을 준비하고 있습니다...</div>
+    <div id="loader">🐍 파이썬 미션을 준비하고 있습니다...</div>
     <header>
         <div style="color:var(--main-color); font-weight:bold;">Jin's Class</div>
-        <button id="run-btn" class="btn-run" onclick="runPython()" disabled>준비 중...</button>
+        <div class="btn-group">
+            <button class="btn-clear" onclick="clearConsole()">지우기 (Clear)</button>
+            <button id="run-btn" class="btn-run" onclick="runPython()" disabled>준비 중...</button>
+        </div>
     </header>
     <div id="editor-container"></div>
     <div id="console"># 실행 결과가 여기에 표시됩니다.</div>
@@ -29,7 +34,12 @@
     <script>
         let pyodide = null;
         let editor = null;
-        const SECRET = "비밀번호486"; 
+        const SECRET = "우주선 발사 준비 완료!"; 
+
+        // [추가] 콘솔을 비우는 아주 간단한 함수
+        function clearConsole() {
+            document.getElementById('console').innerText = "# 실행 결과가 여기에 표시됩니다.";
+        }
 
         async function initApp() {
             try {
@@ -62,6 +72,8 @@ sys.stdout = io.StringIO()
 
         async function runPython() {
             const consoleBox = document.getElementById('console');
+            // 실행할 때마다 이전 내용을 지우고 싶지 않다면 아래 줄을 유지하세요.
+            // 만약 실행할 때마다 자동으로 비우고 싶다면 clearConsole()을 여기서 호출하면 됩니다.
             consoleBox.innerText = "실행 중...\n";
             try {
                 await pyodide.runPythonAsync(`sys.stdout = io.StringIO()`);
@@ -69,7 +81,6 @@ sys.stdout = io.StringIO()
                 const output = await pyodide.runPythonAsync(`sys.stdout.getvalue()`);
                 consoleBox.innerText = output || "실행 완료";
 
-                // 비밀 구절 인식 시 미션 해금! (아이들은 모르게 숨겨진 기능)
                 if (output.trim().includes(SECRET)) {
                     unlockMission();
                 }
@@ -89,6 +100,3 @@ sys.stdout = io.StringIO()
     </script>
 </body>
 </html>
-
-
-
